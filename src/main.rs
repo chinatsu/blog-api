@@ -1,5 +1,6 @@
 #[macro_use] extern crate log;
 #[macro_use] extern crate diesel;
+#[macro_use] extern crate lazy_static;
 use hyper::{
     service::make_service_fn, service::service_fn, Server
 };
@@ -26,7 +27,7 @@ async fn main() -> Result<()> {
         .build(manager)
         .expect("Failed to create pool.");
 
-    let ny_service = make_service_fn(move |_| {
+    let new_service = make_service_fn(move |_| {
         let pool = pool.clone();
         async {
              Ok::<_, GenericError>(service_fn(move |req| {
@@ -35,7 +36,7 @@ async fn main() -> Result<()> {
         }
      });
 
-     let server = Server::bind(&addr).serve(ny_service);
+     let server = Server::bind(&addr).serve(new_service);
 
      info!("Listening on http://{}", addr);
 
