@@ -9,6 +9,7 @@ use diesel::r2d2::{self, ConnectionManager};
 use dotenv;
 
 mod routes;
+mod auth;
 mod db;
 
 type GenericError = Box<dyn std::error::Error + Send + Sync>;
