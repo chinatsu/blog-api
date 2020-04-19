@@ -32,7 +32,8 @@ pub fn add_post(
     let new_post = models::InsertablePost{
         title: post.title.as_str(),
         category: post.category.as_str(),
-        content: post.content.as_str()
+        content: post.content.as_str(),
+        hidden: post.hidden
     };
 
     let item: i32 = diesel::insert_into(posts)
@@ -43,10 +44,6 @@ pub fn add_post(
         .pop()
         .unwrap();
 
-    Ok(models::Post{
-        id: item,
-        title: post.title,
-        category: post.category,
-        content: post.content,
-    })
+    let db_post = query(item, conn)?;
+    Ok(db_post)
 }

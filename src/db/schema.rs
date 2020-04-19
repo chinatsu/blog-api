@@ -4,5 +4,7 @@ table! {
         title -> Text,
         category -> Text,
         content -> Text,
+        postdate -> Timestamp,
+        hidden -> Bool,
     }
 }
