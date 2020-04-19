@@ -96,6 +96,7 @@ name = "blog-api"
 version = "0.1.0"
 dependencies = [
  "alcoholic_jwt",
+ "bytes",
  "diesel",
  "dotenv",
  "env_logger",

@@ -1,11 +1,12 @@
 use super::Result;
 use regex::Regex;
 use hyper::{
-    header,
+    header, body,
     Body, Method, Request,
     Response, StatusCode
 };
-
+use bytes::buf::BufExt;
+use std::io::Read;
 use crate::auth;
 use crate::db;
 use crate::db::Conn;
@@ -13,6 +14,7 @@ use crate::db::Conn;
 type DbError = diesel::result::Error;
 
 const JSON_SERIALIZE_FAILED: &str = "Could not serialize JSON";
+const JSON_PARSE_FAILED: &str = "Could not parse JSON";
 const DB_QUERY_FAILED: &str = "Database query failed";
 const DB_ITEM_NOT_FOUND: &str = "Database item not found";
 const VALIDATION_ERROR: &str = "JWT token validation error";
@@ -49,7 +51,7 @@ pub async fn route(req: Request<Body>, conn: Conn) -> Result<Response<Body>> {
         (&Method::GET, Route::Favicon) => favicon(req).await,
         (&Method::GET, Route::Posts) => posts(conn).await,
         (&Method::GET, Route::Post(id)) => get_post(id, conn).await,
-        (&Method::POST, Route::Posts) => add_post(req).await,
+        (&Method::POST, Route::Posts) => add_post(req, conn).await,
         (&Method::GET, Route::Okay) => okay(req).await,
         _ => four_oh_four().await,
     }
@@ -65,7 +67,7 @@ async fn okay(req: Request<Body>) -> Result<Response<Body>> {
     )
 }
 
-async fn add_post(req: Request<Body>) -> Result<Response<Body>> {
+async fn add_post(req: Request<Body>, conn: Conn) -> Result<Response<Body>> {
     let headers = req.headers();
     let auth_header: String = match headers.contains_key(header::AUTHORIZATION) {
         true => match headers[header::AUTHORIZATION].to_str() {
@@ -94,9 +96,24 @@ async fn add_post(req: Request<Body>) -> Result<Response<Body>> {
         );
     }
 
-    // TODO: Deserialize incoming object from req.body() to db::models::Post and use db::add_post
-    Ok(server_error(GENERIC_OK))
+    let whole_body = body::aggregate(req).await?;
+    let post: db::models::InputPost = match serde_json::from_reader(whole_body.reader()) {
+        Ok(post) => post,
+        Err(err) => return Ok(server_error_string(format!("{}, {}", JSON_PARSE_FAILED, err)))
+    };
 
+    match db::add_post(post, &conn) {
+        Ok(post) => match serde_json::to_string(&post) {
+            Ok(json) => Ok(Response::builder()
+                .status(StatusCode::OK)
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(json.into())
+                .unwrap()
+            ),
+            Err(_) => Ok(server_error(JSON_SERIALIZE_FAILED))
+        },
+        Err(_) => Ok(server_error(DB_QUERY_FAILED))
+    }
 }
 
 async fn favicon(req: Request<Body>) -> Result<Response<Body>> {
@@ -153,6 +170,13 @@ async fn get_post(id: i32, conn: Conn) -> Result<Response<Body>> {
 }
 
 fn server_error(message: &'static str) -> Response<Body> {
+    Response::builder()
+        .status(StatusCode::INTERNAL_SERVER_ERROR)
+        .body(message.into())
+        .unwrap()
+}
+
+fn server_error_string(message: String) -> Response<Body> {
     Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
         .body(message.into())

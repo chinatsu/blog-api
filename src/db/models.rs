@@ -9,6 +9,13 @@ pub struct Post {
     pub content: String,
 }
 
+#[derive(Deserialize)]
+pub struct InputPost {
+    pub title: String,
+    pub category: String,
+    pub content: String
+}
+
 #[derive(Insertable)]
 #[table_name = "posts"]
 pub struct InsertablePost<'a> {

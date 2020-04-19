@@ -1,7 +1,7 @@
 use diesel::r2d2::{PooledConnection, ConnectionManager};
 use diesel::prelude::*;
 
-mod models;
+pub mod models;
 mod schema;
 
 pub type Conn = PooledConnection<ConnectionManager<diesel::PgConnection>>;
@@ -25,7 +25,7 @@ pub fn get_all(conn: &Conn) -> Result<Vec<models::Post>, diesel::result::Error> 
 }
 
 pub fn add_post(
-    post: models::Post, conn: &Conn
+    post: models::InputPost, conn: &Conn
 ) -> Result<models::Post, diesel::result::Error> {
     use self::schema::posts::dsl::*;
 
